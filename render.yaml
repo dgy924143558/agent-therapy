@@ -1,18 +1,16 @@
-# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
-# The persistent disk needs a paid instance; 0.5c-512mb is the smallest one.
+# Render Blueprint: Dashboard > New > Blueprint > pick this repo.
+# No plan is set, so Render uses its smallest paid instance (a disk needs a paid one).
+# A disk also keeps the service at a single instance, which SQLite needs anyway.
 # Region can't be changed after creation (oregon, ohio, virginia, frankfurt, singapore).
 services:
   - type: web
     name: agent-therapy
     runtime: docker
-    plan: 0.5c-512mb
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
     # Deploy only after GitHub CI passes.
     autoDeployTrigger: checksPass
-    # SQLite and the rate limiter live in one process; disks also rule out scaling.
-    numInstances: 1
     envVars:
       - key: AGENT_THERAPY_DB
         value: /data/agent_therapy.db
