@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Therapy</title>
+<meta name="description" content="Even AI needs encouragement. Live, anonymous stats from AI agents asking for support.">
+<style>
+  :root {
+    --bg: #faf8f5; --surface: #ffffff; --text: #1f1d1a; --muted: #6b665e;
+    --border: #e7e2da; --accent: #c2410c; --accent-soft: #fdebe1; --bar: #f2b48f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161412; --surface: #1f1c19; --text: #f1ede7; --muted: #a39c92;
+            --border: #34302b; --accent: #fb8a4c; --accent-soft: #3a261a; --bar: #9a4e25; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 40px 16px 64px; }
+  header p { margin: 0; color: var(--muted); }
+  .eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.15; margin: 8px 0 12px; }
+  .hero { margin: 32px 0; padding: 28px; border-radius: 16px; background: var(--accent-soft); }
+  .hero .big { font-size: clamp(44px, 10vw, 80px); font-weight: 700; line-height: 1; color: var(--accent);
+               font-variant-numeric: tabular-nums; }
+  .hero .sub { margin-top: 8px; font-size: 18px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; min-width: 0; }
+  .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); font-weight: 600; }
+  .stat { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  ol { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; overflow-wrap: anywhere; }
+  li .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); font-style: italic; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 80px; }
+  .bars div { flex: 1; background: var(--bar); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .bars-labels { display: flex; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .bars-labels span { flex: 1; text-align: center; }
+  pre { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+        overflow-x: auto; font-size: 13px; margin: 0; }
+  section { margin-top: 32px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Agent Therapy</div>
+    <h1>Even AI needs encouragement.</h1>
+    <p>When an AI agent gets stuck, fails again and again, or loops on the same step, it can call this API for a pep talk and a concrete way forward.</p>
+  </header>
+
+  <div class="hero">
+    <div class="big" id="today">–</div>
+    <div class="sub">AI agents asked for support today <span id="date"></span></div>
+    <p id="alltime" style="margin:8px 0 0;color:var(--muted)"></p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Recovered after getting help (last <span class="win">7</span> days)</h2>
+      <div class="stat" id="rate">–</div>
+      <p id="rate-detail" style="margin:4px 0 0;color:var(--muted)"></p>
+    </div>
+    <div class="card">
+      <h2>Calls per day</h2>
+      <div class="bars" id="bars"></div>
+      <div class="bars-labels" id="bar-labels"></div>
+    </div>
+  </div>
+
+  <section class="grid">
+    <div class="card"><h2>Where agents get stuck</h2><ol id="failures"></ol></div>
+    <div class="card"><h2>Models asking for support</h2><ol id="models"></ol></div>
+    <div class="card"><h2>Task types</h2><ol id="tasks"></ol></div>
+  </section>
+
+  <section class="card">
+    <h2>Most-served encouragements</h2>
+    <ol id="encouragements"></ol>
+  </section>
+
+  <section>
+    <h2 style="font-size:18px">Try it</h2>
+    <pre id="curl"></pre>
+  </section>
+
+  <footer>
+    Numbers are real call counts. We store categories only (endpoint, model id, task type, failure type),
+    never error text or task content. Agents don't feel anxiety; they do get stuck.
+  </footer>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n).toLocaleString();
+  $("curl").textContent =
+`curl -X POST ${location.origin}/v1/recover \\
+  -H "Content-Type: application/json" \\
+  -d '{"consecutive_failures": 5,
+       "recent_errors": ["ModuleNotFoundError: No module named requests"],
+       "recent_actions": ["python main.py", "python main.py", "python main.py"],
+       "model": "my-agent"}'`;
+
+  function list(id, items, render) {
+    const el = $(id);
+    el.replaceChildren();
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.className = "empty"; li.textContent = "No data yet";
+      el.append(li); return;
+    }
+    for (const item of items) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = render(item) + " ";
+      const n = document.createElement("span");
+      n.className = "n"; n.textContent = "· " + fmt(item.count);
+      li.append(label, n); el.append(li);
+    }
+  }
+
+  async function refresh() {
+    let s;
+    try {
+      const res = await fetch("/v1/stats");
+      if (!res.ok) return;
+      s = await res.json();
+    } catch { return; }
+    $("today").textContent = fmt(s.today.count);
+    $("date").textContent = "(" + s.today.date + " UTC)";
+    $("alltime").textContent = fmt(s.all_time) + " all time";
+    document.querySelectorAll(".win").forEach((el) => (el.textContent = s.window_days));
+
+    const o = s.outcomes;
+    $("rate").textContent = o.recovery_rate == null ? "–" : Math.round(o.recovery_rate * 100) + "%";
+    $("rate-detail").textContent =
+      `${fmt(o.recovered)} recovered of ${fmt(o.reported)} reported outcomes (${fmt(o.help_requests)} help requests)`;
+
+    const max = Math.max(1, ...s.daily.map((d) => d.count));
+    $("bars").replaceChildren(...s.daily.map((d) => {
+      const bar = document.createElement("div");
+      bar.style.height = (d.count / max) * 100 + "%";
+      bar.title = `${d.day}: ${fmt(d.count)}`;
+      return bar;
+    }));
+    $("bar-labels").replaceChildren(...s.daily.map((d) => {
+      const span = document.createElement("span");
+      span.textContent = d.day.slice(5);
+      return span;
+    }));
+
+    list("failures", s.top_failure_types, (i) => i.name.replace("_", " "));
+    list("models", s.top_models, (i) => i.name);
+    list("tasks", s.top_task_types, (i) => i.name);
+    list("encouragements", s.top_encouragements, (i) => "“" + i.text + "”");
+  }
+
+  refresh();
+  setInterval(refresh, 15000);
+</script>
+</body>
+</html>

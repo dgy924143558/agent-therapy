@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-therapy"
+version = "0.1.0"
+description = "Even AI needs encouragement. Emotional support and task recovery for stuck AI agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "dgy924143558" }]
+keywords = ["ai-agents", "mcp", "llm", "agent-reliability", "recovery", "encouragement"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+# The SDK itself has no dependencies; the server and MCP pieces are extras.
+dependencies = []
+
+[project.optional-dependencies]
+server = ["fastapi>=0.110", "uvicorn>=0.29"]
+mcp = ["mcp>=2.0"]
+dev = ["agent-therapy[server,mcp]", "pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+agent-therapy-server = "agent_therapy.api:main"
+agent-therapy-mcp = "agent_therapy.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/dgy924143558/agent-therapy"
+Issues = "https://github.com/dgy924143558/agent-therapy/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_therapy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
