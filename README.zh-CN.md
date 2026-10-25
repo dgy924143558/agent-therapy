@@ -127,6 +127,16 @@ monitor.finish(success=agent.done)
 
 策略：用“AI 也需要情绪支持”做传播噱头，用“Agent 任务恢复能力”做真正的收费功能。
 
+## 部署到 Render（推荐）
+
+仓库里带了 [`render.yaml`](render.yaml) 蓝图：Docker Web 服务、挂载在 `/data` 的 1 GB 持久化磁盘、`/healthz` 健康检查、CI 通过后自动部署。
+
+1. Render 控制台 → **New → Blueprint** → 连接 GitHub，选这个仓库。
+2. 确认套餐（持久化磁盘需要付费实例），点 **Deploy Blueprint**。
+3. 打开 `https://<你的服务名>.onrender.com/healthz` 验证。
+
+部署好之后，让 Agent 设置 `AGENT_THERAPY_API_URL=https://<你的服务名>.onrender.com`。
+
 ## 部署到 Railway
 
 仓库里的 Dockerfile 可以直接在 Railway 上用，不需要额外的配置文件。

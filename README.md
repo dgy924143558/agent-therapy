@@ -151,6 +151,16 @@ docker build -t agent-therapy .
 docker run -p 8000:8000 -v agent-therapy-data:/data agent-therapy
 ```
 
+### Deploy on Render
+
+The repo includes a [`render.yaml`](render.yaml) Blueprint: a Docker web service with a 1 GB persistent disk at `/data`, health check on `/healthz`, and auto-deploy after CI passes.
+
+1. Render Dashboard → **New → Blueprint** → connect GitHub and pick this repo.
+2. Review the plan (the disk requires a paid instance) and click **Deploy Blueprint**.
+3. Open `https://<your-service>.onrender.com/healthz`.
+
+Then point agents at it: `AGENT_THERAPY_API_URL=https://<your-service>.onrender.com`.
+
 ### Deploy on Railway
 
 The Dockerfile works on Railway as is; no config file needed.
