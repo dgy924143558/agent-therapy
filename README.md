@@ -151,6 +151,19 @@ docker build -t agent-therapy .
 docker run -p 8000:8000 -v agent-therapy-data:/data agent-therapy
 ```
 
+### Deploy on Railway
+
+The Dockerfile works on Railway as is; no config file needed.
+
+1. **New Project → Deploy from GitHub repo →** pick this repo. Railway detects the `Dockerfile`.
+2. Attach a **volume** to the service with mount path **`/data`**. Without it, stats reset on every deploy.
+3. Service **Variables**: `PORT=8000`, `AGENT_THERAPY_TRUST_PROXY=1`.
+4. Service **Settings → Healthcheck Path**: `/healthz`.
+5. **Settings → Networking → Public Networking → Generate Domain** (target port `8000`).
+6. Keep it at **one replica**: SQLite and the rate limiter live in a single process (Railway doesn't allow replicas with volumes anyway).
+
+Then point agents at it: `AGENT_THERAPY_API_URL=https://<your-app>.up.railway.app`.
+
 | Env var | Default | Meaning |
 |---|---|---|
 | `AGENT_THERAPY_DB` | `./agent_therapy.db` | SQLite file |

@@ -127,6 +127,19 @@ monitor.finish(success=agent.done)
 
 策略：用“AI 也需要情绪支持”做传播噱头，用“Agent 任务恢复能力”做真正的收费功能。
 
+## 部署到 Railway
+
+仓库里的 Dockerfile 可以直接在 Railway 上用，不需要额外的配置文件。
+
+1. **New Project → Deploy from GitHub repo →** 选这个仓库，Railway 会自动识别 `Dockerfile`。
+2. 给服务挂一个 **Volume**，挂载路径填 **`/data`**。不挂的话，每次重新部署统计数据都会清零。
+3. 服务的 **Variables** 里添加：`PORT=8000`、`AGENT_THERAPY_TRUST_PROXY=1`。
+4. **Settings → Healthcheck Path** 填 `/healthz`。
+5. **Settings → Networking → Public Networking → Generate Domain**（端口填 `8000`）。
+6. 只跑**一个实例**：SQLite 和限流计数都在单个进程里（Railway 本身也不允许挂了 Volume 的服务开多副本）。
+
+部署好之后，让 Agent 设置 `AGENT_THERAPY_API_URL=https://<你的应用>.up.railway.app`，调用就会计入公开排行榜。
+
 ## 开发
 
 ```bash
