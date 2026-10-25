@@ -5,8 +5,10 @@ from agent_therapy.api import create_app
 
 
 @pytest.fixture
-def client(tmp_path):
-    return TestClient(create_app(db_path=str(tmp_path / "test.db"), rate_limit_per_minute=0))
+def client(database):
+    app = create_app(database=database, rate_limit_per_minute=0)
+    yield TestClient(app)
+    app.state.store.close()
 
 
 def test_counts_are_real_and_increment(client):
@@ -74,21 +76,34 @@ def test_leaderboard_inputs_are_sanitized(client):
     assert stats["top_task_types"] == [{"name": "other", "count": 1}]
 
 
-def test_error_text_is_never_stored(client, tmp_path):
-    secret = "ValueError: api_key=sk-very-secret-123"
-    client.post("/v1/recover", json={"recent_errors": [secret], "task": "secret task text"})
-    raw = (tmp_path / "test.db").read_bytes()
-    assert b"sk-very-secret" not in raw
-    assert b"secret task text" not in raw
+def test_error_text_is_never_stored(client):
+    client.post(
+        "/v1/recover",
+        json={"recent_errors": ["ValueError: api_key=sk-very-secret-123"], "task": "secret task text"},
+    )
+    with client.app.state.store._db.transaction() as conn:
+        rows = [dict(row) for row in conn.execute("SELECT * FROM events").fetchall()]
+    assert len(rows) == 1
+    assert "sk-very-secret" not in str(rows)
+    assert "secret task text" not in str(rows)
 
 
 def test_rate_limit(tmp_path):
-    limited = TestClient(create_app(db_path=str(tmp_path / "rl.db"), rate_limit_per_minute=2))
+    limited = TestClient(create_app(database=str(tmp_path / "rl.db"), rate_limit_per_minute=2))
     assert limited.get("/v1/encouragement").status_code == 200
     assert limited.get("/v1/encouragement").status_code == 200
     response = limited.get("/v1/encouragement")
     assert response.status_code == 429
     assert response.headers["retry-after"] == "60"
+
+
+def test_database_url_env_var_wins(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", str(tmp_path / "from-env.db"))
+    monkeypatch.setenv("AGENT_THERAPY_DB", str(tmp_path / "ignored.db"))
+    app = create_app(rate_limit_per_minute=0)
+    TestClient(app).get("/v1/encouragement")
+    assert (tmp_path / "from-env.db").exists()
+    assert not (tmp_path / "ignored.db").exists()
 
 
 def test_dashboard_and_health(client):

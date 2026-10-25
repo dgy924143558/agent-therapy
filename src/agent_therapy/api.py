@@ -17,6 +17,7 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 from importlib import resources
 from typing import Literal
 
@@ -85,22 +86,33 @@ class RateLimiter:
             return True
 
 
+def default_database() -> str:
+    return os.environ.get("DATABASE_URL") or os.environ.get("AGENT_THERAPY_DB") or "agent_therapy.db"
+
+
 def create_app(
-    db_path: str | None = None,
+    database: str | None = None,
     rate_limit_per_minute: int | None = None,
     trust_proxy: bool | None = None,
 ) -> FastAPI:
-    store = Store(db_path or os.environ.get("AGENT_THERAPY_DB", "agent_therapy.db"))
+    """`database` is a SQLite path or a postgres:// URL (default: $DATABASE_URL, then $AGENT_THERAPY_DB)."""
+    store = Store(database or default_database())
     if rate_limit_per_minute is None:
         rate_limit_per_minute = int(os.environ.get("AGENT_THERAPY_RATE_LIMIT", "120"))
     limiter = RateLimiter(rate_limit_per_minute)
     if trust_proxy is None:
         trust_proxy = os.environ.get("AGENT_THERAPY_TRUST_PROXY") == "1"
 
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        yield
+        store.close()
+
     app = FastAPI(
         title="Agent Therapy",
         version=__version__,
         description="Even AI needs encouragement. Emotional support and task recovery for stuck AI agents.",
+        lifespan=lifespan,
     )
     app.state.store = store
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
@@ -122,6 +134,7 @@ def create_app(
     def dashboard() -> str:
         return resources.files("agent_therapy").joinpath("static/index.html").read_text(encoding="utf-8")
 
+    # Never touches the database, so uptime pings don't keep a serverless database awake.
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         return {"ok": True, "version": __version__}
@@ -195,12 +208,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Agent Therapy API server.")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")))
-    parser.add_argument("--db", default=None, help="SQLite path (default: $AGENT_THERAPY_DB or ./agent_therapy.db)")
+    parser.add_argument(
+        "--db",
+        default=None,
+        help="SQLite path or postgres:// URL (default: $DATABASE_URL, then $AGENT_THERAPY_DB, then ./agent_therapy.db)",
+    )
     args = parser.parse_args()
 
     import uvicorn
 
-    uvicorn.run(create_app(db_path=args.db), host=args.host, port=args.port)
+    app = create_app(database=args.db)
+    # Never print the database URL itself: it contains the password.
+    print(f"agent-therapy {__version__}: storing stats in {app.state.store.backend}", flush=True)
+    uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

@@ -127,13 +127,17 @@ monitor.finish(success=agent.done)
 
 策略：用“AI 也需要情绪支持”做传播噱头，用“Agent 任务恢复能力”做真正的收费功能。
 
-## 部署到 Render（推荐）
+## 免费部署：Render + Neon（推荐）
 
-仓库里带了 [`render.yaml`](render.yaml) 蓝图：Docker Web 服务、挂载在 `/data` 的 1 GB 持久化磁盘、`/healthz` 健康检查、CI 通过后自动部署。
+仓库里的 [`render.yaml`](render.yaml) 蓝图用的是 Render **免费实例**。免费实例没有磁盘，所以统计数据存到免费的 [Neon](https://neon.tech) Postgres 数据库里。
 
-1. Render 控制台 → **New → Blueprint** → 连接 GitHub，选这个仓库。
-2. 确认套餐（持久化磁盘需要付费实例），点 **Deploy Blueprint**。
-3. 打开 `https://<你的服务名>.onrender.com/healthz` 验证。
+1. 在 Neon 创建项目，地区选 **AWS US West 2 (Oregon)**，复制连接字符串（`postgresql://...`）。
+2. Render 控制台 → **New → Blueprint** → 连接 GitHub，选这个仓库。
+3. 把 Neon 的连接字符串粘贴到 `DATABASE_URL`，点 **Deploy Blueprint**。
+4. 打开 `https://<你的服务名>.onrender.com/healthz` 验证。
+5. 可选：免费实例 15 分钟没人访问会休眠。用 UptimeRobot 之类的监控服务每 5 分钟访问一次 `/healthz` 就能保持在线。`/healthz` 不访问数据库，所以 Neon 照样可以休眠，不会用超免费额度。
+
+想用磁盘而不是 Postgres：换成付费实例，在 `/data` 挂一个磁盘，去掉 `DATABASE_URL` 即可。
 
 部署好之后，让 Agent 设置 `AGENT_THERAPY_API_URL=https://<你的服务名>.onrender.com`。
 

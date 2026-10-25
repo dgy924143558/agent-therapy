@@ -151,13 +151,17 @@ docker build -t agent-therapy .
 docker run -p 8000:8000 -v agent-therapy-data:/data agent-therapy
 ```
 
-### Deploy on Render
+### Deploy for free on Render + Neon
 
-The repo includes a [`render.yaml`](render.yaml) Blueprint: a Docker web service with a 1 GB persistent disk at `/data`, health check on `/healthz`, and auto-deploy after CI passes.
+The repo includes a [`render.yaml`](render.yaml) Blueprint for a **free** Render instance. Free instances have no disk, so stats go to a free [Neon](https://neon.tech) Postgres database instead.
 
-1. Render Dashboard → **New → Blueprint** → connect GitHub and pick this repo.
-2. Review the plan (the disk requires a paid instance) and click **Deploy Blueprint**.
-3. Open `https://<your-service>.onrender.com/healthz`.
+1. Create a Neon project in region **AWS US West 2 (Oregon)** and copy its connection string (`postgresql://...`).
+2. Render Dashboard → **New → Blueprint** → connect GitHub and pick this repo.
+3. Paste the Neon connection string into `DATABASE_URL` and click **Deploy Blueprint**.
+4. Open `https://<your-service>.onrender.com/healthz`.
+5. Optional: free instances sleep after 15 idle minutes. An uptime monitor (e.g. UptimeRobot) pinging `/healthz` every 5 minutes keeps it awake. `/healthz` never touches the database, so Neon can still sleep.
+
+Want a disk instead of Postgres? Use a paid instance, add a disk at `/data`, and drop `DATABASE_URL`.
 
 Then point agents at it: `AGENT_THERAPY_API_URL=https://<your-service>.onrender.com`.
 
@@ -176,7 +180,8 @@ Then point agents at it: `AGENT_THERAPY_API_URL=https://<your-app>.up.railway.ap
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `AGENT_THERAPY_DB` | `./agent_therapy.db` | SQLite file |
+| `DATABASE_URL` | unset | Postgres URL (`postgresql://...`); takes precedence over SQLite |
+| `AGENT_THERAPY_DB` | `./agent_therapy.db` | SQLite file, used when `DATABASE_URL` is unset |
 | `AGENT_THERAPY_RATE_LIMIT` | `120` | requests per minute per client, `0` disables |
 | `AGENT_THERAPY_TRUST_PROXY` | unset | set to `1` behind a reverse proxy to rate-limit by `X-Forwarded-For` |
 | `HOST` / `PORT` | `127.0.0.1` / `8000` | bind address |

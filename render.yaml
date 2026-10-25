@@ -1,22 +1,26 @@
-# Render Blueprint: Dashboard > New > Blueprint > pick this repo.
-# No plan is set, so Render uses its smallest paid instance (a disk needs a paid one).
-# A disk also keeps the service at a single instance, which SQLite needs anyway.
-# Region can't be changed after creation (oregon, ohio, virginia, frankfurt, singapore).
+# Render Blueprint (free): Dashboard > New > Blueprint > pick this repo.
+#
+# Free instances have no disk, so stats live in a free Postgres database (e.g. Neon).
+# Render asks for DATABASE_URL when you create the Blueprint.
+#
+# Free instances sleep after 15 idle minutes. An uptime monitor pinging /healthz every
+# 5-10 minutes keeps it awake; /healthz never touches the database, so the database
+# can still sleep and stay within its free compute hours.
+#
+# Region can't be changed after creation. Put the database near it
+# (oregon = AWS us-west-2 on Neon).
 services:
   - type: web
     name: agent-therapy
     runtime: docker
+    plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
     # Deploy only after GitHub CI passes.
     autoDeployTrigger: checksPass
     envVars:
-      - key: AGENT_THERAPY_DB
-        value: /data/agent_therapy.db
+      - key: DATABASE_URL
+        sync: false
       - key: AGENT_THERAPY_TRUST_PROXY
         value: "1"
-    disk:
-      name: agent-therapy-data
-      mountPath: /data
-      sizeGB: 1
